@@ -38,3 +38,9 @@ Make is used for builds:
 make build
 make build-x11
 ```
+
+
+### Todo:
+  - Implement the -S flag
+  - keybioard navigation
+
