@@ -30,6 +30,12 @@ typedef struct {
   bool success;
 } ParsedOptionFile;
 
+typedef struct {
+  int count;
+  Option **options;
+
+} ParsedOptions;
+
 int countOptions(char *inp, char *delimiter) {
 
   if (inp == NULL || delimiter == NULL) {
@@ -45,7 +51,6 @@ int countOptions(char *inp, char *delimiter) {
   int commands = 1;
 
   if (delim_len == 1) {
-    // Single char delimiter — use strchr
     for (int i = 0; i < inp_len; i++) {
       if (inp[i] == delimiter[0]) {
         commands++;
@@ -98,22 +103,40 @@ Option *parseOption(char *inp) {
     j++;
     i++;
   }
-
-  opt->label[strlen(opt->label)] = '\0';
+  opt->label[strlen(opt->label)] =
+      '\0'; // strlen on uninitialized malloc'd memory — UB
   opt->command[strlen(opt->command)] = '\0';
 
   return opt;
 }
 
-void parseOptionsFromStringInput(char *inp, Option *optBuf[], int count,
-                                 char *delimiter) {
+ParsedOptions parseOptionsFromStringInput(char *inp, char *delimiter) {
+
+  ParsedOptions result = {0};
 
   char *inp_cpy = strdup(inp);
 
   int input_len = strlen(inp);
+
   if (input_len > MAX_STR_LEN) {
     exit(1);
   }
+
+  if (strlen(delimiter) == 0) {
+    exit(1);
+  }
+
+  int count = 0;
+
+  // Count the options in the input
+  count = countOptions(inp, delimiter);
+  // assert(count > 0);
+  if (count == 0) {
+    exit(1);
+  }
+
+  result.count = count;
+  result.options = malloc(sizeof(Option) * count);
 
   char *token = strtok(inp_cpy, delimiter);
   int index = 0;
@@ -123,20 +146,14 @@ void parseOptionsFromStringInput(char *inp, Option *optBuf[], int count,
       token = strtok(NULL, delimiter);
       continue;
     }
-
-    optBuf[index] = op;
-
-    index++;
     token = strtok(NULL, delimiter);
+    result.options[index] = op;
+    index++;
   }
+
   free(inp_cpy);
+  return result;
 }
-
-typedef struct {
-  int count;
-  Option **options;
-
-} ParsedOptions;
 
 ParsedOptions parseOptionsFromFile(char *path) {
 
@@ -147,19 +164,25 @@ ParsedOptions parseOptionsFromFile(char *path) {
 
   FILE *f = fopen(path, "r");
 
+  if (f == NULL) {
+    printf("Failed opening the file");
+    exit(1);
+  }
+
   char line[256];
 
   int default_options_array_size = 20;
   int current_size = default_options_array_size;
-  Option **opts = malloc(sizeof(Option) + default_options_array_size);
+  Option **opts = malloc(sizeof(Option) * default_options_array_size);
 
   while (fgets(line, sizeof(line), f)) {
     Option *opt = parseOption(line);
+    printf("%s\n\n\n", opt->label);
     if (opt == NULL) {
       continue;
     }
     if (current_size <= count) {
-      opts = realloc(opts, current_size + default_options_array_size);
+      opts = realloc(opts, current_size * default_options_array_size);
     }
     opts[count] = opt;
     count++;
@@ -169,10 +192,10 @@ ParsedOptions parseOptionsFromFile(char *path) {
   return (ParsedOptions){.options = opts, .count = count};
 }
 
-void drawOptionButtons(int count, Option *opts[]) {
-
+void drawOptionButtons(int count, Option **opts) {
   for (int i = 0; i < count; ++i) {
     int margin = 10;
+
     char *label = opts[i]->label;
     float w = WIDTH * 0.8;
     int xOffset = WIDTH * 0.1;
@@ -221,7 +244,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  ParsedOptions opts;
+  ParsedOptions opts = {0};
 
   if (!strcmp(argv[1], FLAG_FILE)) {
     if (argv[2] == NULL) {
@@ -230,11 +253,18 @@ int main(int argc, char **argv) {
     }
     opts = parseOptionsFromFile(argv[2]);
   } else if (!strcmp(argv[1], FLAG_STRING)) {
+    if (argv[3] == NULL) {
+      printf("Missing delimiter\n");
+      return 1;
+    }
+
+    opts = parseOptionsFromStringInput(argv[2], argv[3]);
   } else if (!strcmp(argv[1], FLAG_HELP)) {
     printHelpFlagMessage();
     return 0;
   } else {
     printf("Unsuported input\n");
+    printHelpFlagMessage();
     return 1;
   }
 

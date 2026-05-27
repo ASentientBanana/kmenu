@@ -17,7 +17,7 @@ This will only accept 3 flags
 
 -h Help menu <br>
 -f file flag, eg. `kmenu -f ~/.config/kmenu/config` <br>
--s string flag eg. `kmenu -s Shutdown;shutdown,Reboot;reboot\" ";" ` (Not yet available)
+-s string flag eg. `kmenu -s Shutdown;shutdown,Reboot;reboot\" "," `
 
 <br> The ";" is the delimiter used to separate commands.
 <br> The supported formant for options is `[label];[command]` eg. `"Power off;/sbin/shutdown"`
@@ -41,6 +41,5 @@ make build-x11
 
 
 ### Todo:
-  - Implement the -S flag
   - keybioard navigation
 
